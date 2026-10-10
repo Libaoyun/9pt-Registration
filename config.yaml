@@ -1,0 +1,82 @@
+# ============================================================
+# ChatGPT 极速协议版 (Protocol Edition) - 配置文件
+# 基于 HTTP/2 底层网络协议与 Sentinel PoW 逆向解密
+# 无需启动无头浏览器，内存开销 < 50MB，支持高并发批量注册
+# ============================================================
+
+# 注册配置
+registration:
+  total_accounts: 1      # 批量注册的账号数量
+  min_age: 20            # 随机生日的最小年龄
+  max_age: 40            # 随机生日的最大年龄
+  referral_url: ""       # 试用邀请链接 (如 https://chatgpt.com/invite/xxxxxx)，可激活 Plus 1个月试用资格
+  enable_2fa: true       # 注册成功后是否自动绑定 2FA TOTP (提取 32 位密钥，防止一次性邮箱失效后无法登录)
+
+# 临时邮箱服务
+email:
+  wait_timeout: 120     # 等待验证邮件的最大超时时间(秒)
+  poll_interval: 3      # 轮询检查邮件的间隔(秒)
+
+# 代理配置 (支持 HTTP/SOCKS5，协议版强烈建议配置优质原生住宅代理以规避 Cloudflare 风控)
+proxy:
+  enabled: false
+  type: "http"          # http 或 socks5
+  host: ""
+  port: 8080
+  use_auth: false
+  username: ""
+  password: ""
+
+# 2925 自有邮箱（共享 IMAP 收件箱 + alias）- 可选
+custom2925:
+  enabled: false
+  base_email: "your-main-mail@2925.com"
+  domain: "2925.com"
+  alias_prefix: "youralias"
+  alias_separator: "b"
+  start_index: 1
+  imap_host: "imap.2925.com"
+  imap_port: 993
+  imap_ssl: true
+  imap_user: "your-main-mail@2925.com"
+  imap_password: ""
+  mailbox: "INBOX"
+  lookback_seconds: 300
+  counter_file: "data/state/custom2925_counter.json"
+
+# 账号密码规则
+password:
+  length: 16
+  charset: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%"
+
+# 错误重试策略
+retry:
+  http_max_retries: 5
+  http_timeout: 30
+  error_page_max_retries: 5
+  button_click_max_retries: 3
+
+# 批量注册间隔（秒）
+batch:
+  interval_min: 5
+  interval_max: 15
+
+# 文件路径配置 (默认与浏览器版共享账号数据库)
+files:
+  accounts_file: "../gpt-auto-register/data/accounts/registered_accounts.txt"
+
+# Codex OAuth 配置
+oauth:
+  enabled: true          # 注册后是否自动获取 Codex OAuth Token
+  required: false         # Token 获取失败是否视为注册失败
+  issuer: "https://auth.openai.com"
+  client_id: "app_EMoamEEZ73f0CkXaXp7hrann"
+  redirect_uri: "http://localhost:1455/auth/callback"
+  ak_file: "token_exports/ak.txt"
+  rk_file: "token_exports/rk.txt"
+  token_json_dir: "data/tokens"
+
+# CPA 上传配置（可选）
+cpa:
+  upload_api_url: ""
+  upload_api_token: ""
