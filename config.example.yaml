@@ -1,0 +1,85 @@
+# ============================================================
+# ChatGPT Auto Register - 配置文件
+# 复制本文件为 config.yaml 后按需修改
+#   cp config.example.yaml config.yaml
+# ============================================================
+
+# 注册配置
+registration:
+  total_accounts: 1      # 批量注册的账号数量
+  min_age: 20            # 随机生日的最小年龄
+  max_age: 40            # 随机生日的最大年龄
+
+# 临时邮箱服务
+email:
+  wait_timeout: 120     # 等待验证邮件的最大超时时间(秒)
+  poll_interval: 3      # 轮询检查邮件的间隔(秒)
+
+# 2925 自有邮箱（共享 IMAP 收件箱 + alias）- 可选
+custom2925:
+  enabled: false
+  base_email: "your-main-mail@2925.com"
+  domain: "2925.com"
+  alias_prefix: "youralias"
+  alias_separator: "b"
+  start_index: 1
+  imap_host: "imap.2925.com"
+  imap_port: 993
+  imap_ssl: true
+  imap_user: "your-main-mail@2925.com"
+  imap_password: ""   # 建议改用环境变量 CUSTOM2925_IMAP_PASSWORD
+  mailbox: "INBOX"
+  lookback_seconds: 300
+  counter_file: "data/state/custom2925_counter.json"
+
+# 浏览器自动化配置
+browser:
+  max_wait_time: 600    # 全局最大等待时间
+  short_wait_time: 120  # 短任务等待时间
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+# 账号密码规则
+password:
+  length: 16
+  charset: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%"
+
+# 错误重试策略
+retry:
+  http_max_retries: 5
+  http_timeout: 30
+  error_page_max_retries: 5
+  button_click_max_retries: 3
+
+# 批量注册间隔（秒）- 建议不低于 25 秒以避免风控
+batch:
+  interval_min: 25
+  interval_max: 40
+
+# 文件路径配置
+files:
+  accounts_file: "data/accounts/registered_accounts.txt"
+
+# Codex OAuth 配置
+oauth:
+  enabled: true          # 注册后是否自动获取 Codex OAuth Token
+  required: false         # Token 获取失败是否视为注册失败
+  issuer: "https://auth.openai.com"
+  client_id: "app_EMoamEEZ73f0CkXaXp7hrann"
+  redirect_uri: "http://localhost:1455/auth/callback"
+  ak_file: "token_exports/ak.txt"
+  rk_file: "token_exports/rk.txt"
+  token_json_dir: "data/tokens"
+
+# CLIProxyAPI Token 池接入（可选）
+# 注册成功后自动推送 Codex Token 到 CLIProxyAPI
+# 也可通过环境变量设置: CLIPROXY_API_URL, CLIPROXY_API_KEY, CLIPROXY_AUTH_DIR
+cliproxy:
+  enabled: false         # 是否启用自动推送
+  api_url: "http://localhost:8317"
+  api_key: ""            # CLIProxyAPI 管理密钥（建议通过环境变量 CLIPROXY_API_KEY 设置）
+  auth_dir: "~/.cli-proxy-api"  # Token 文件目录（备选写入方式）
+
+# CPA 上传配置（可选）
+cpa:
+  upload_api_url: ""     # 例如 https://your-cpa.example.com/upload
+  upload_api_token: ""   # 建议优先通过环境变量 CPA_UPLOAD_API_TOKEN 提供

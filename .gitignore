@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# User data (sensitive)
+data/tokens/*.json
+data/accounts/*.txt
+data/state/*.json
+token_exports/
+
+# User config (contains personal settings)
+config.yaml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uv
+.uv/

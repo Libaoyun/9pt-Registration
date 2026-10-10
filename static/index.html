@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT 批量注册与一体化控制台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Sidebar Navigation & Settings -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">⚡</div>
+            <div class="brand-text">
+                <span>GPT 自动化注册</span>
+                <span class="brand-subtitle">浏览器自动化版 (8888)</span>
+            </div>
+            <button id="btnToggleTheme" class="theme-toggle action-btn-sm" onclick="toggleTheme()"
+                    title="切换深色 / 浅色模式（记忆选择）"
+                    style="margin-left:auto;padding:5px 9px;font-size:11px;white-space:nowrap;">🌙 深色模式</button>
+        </div>
+
+        <nav class="nav-menu">
+            <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                <span class="nav-icon">📊</span> 仪表盘概览
+            </div>
+            <div class="nav-item" data-tab="accounts" onclick="switchTab('accounts')">
+                <span class="nav-icon">👥</span> 账号资产管理
+            </div>
+            <div class="nav-item" data-tab="report" onclick="switchTab('report')">
+                <span class="nav-icon">🧾</span> 最终报表 (全自动)
+            </div>
+            <div class="nav-item" data-tab="tokens" onclick="switchTab('tokens')">
+                <span class="nav-icon">🪪</span> 批量 Token 获取
+            </div>
+            <div class="nav-item" data-tab="api-service" onclick="switchTab('api-service')">
+                <span class="nav-icon">🌐</span> Chat2Api 接口服务
+            </div>
+        </nav>
+
+        <!-- 任务快捷控制 -->
+        <div class="control-box">
+            <div class="control-header">
+                <span>🚀 任务控制</span>
+            </div>
+
+            <div class="ctrl-row">
+                <label class="ctrl-label">注册数量</label>
+                <input type="number" id="targetCount" class="ctrl-input" value="1" min="1" max="50" style="width: 80px; text-align: center;">
+            </div>
+
+            <button id="btnStart" class="btn btn-primary" onclick="startTask()">
+                <span>🚀</span> 启动自动化任务
+            </button>
+            <button id="btnStop" class="btn btn-danger hidden" onclick="stopTask()">
+                <span>🛑</span> 停止运行任务
+            </button>
+
+            <div style="border-top: 1px dashed var(--border-light); margin: 10px 0 8px;"></div>
+
+            <button id="btnAutopilot" class="btn" style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);color:#fff;" onclick="startAutopilot()">
+                <span>🤖</span> 一键全自动流水线
+            </button>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px; line-height: 1.5;">
+                注册 → 真实补全(Web凭据 + 真实2FA) → 官方接口检测 → 直接出报表
+            </div>
+            <label class="ctrl-row" style="margin-top: 6px;">
+                <span class="ctrl-label" title="连带把历史账号也一起在线复核（较慢）">连历史账号一起复核</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="verifyAll" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </label>
+            <div class="ctrl-row" style="margin-top: 6px;">
+                <span class="ctrl-label" title="每个账号之间等待多久再注册下一个；放慢可显著降低 IP 被风控概率">注册间隔(秒)</span>
+                <input type="number" id="staggerSeconds" class="ctrl-input" value="60" min="0" max="600"
+                       style="width: 70px; text-align: center;">
+            </div>
+            <label class="ctrl-row" style="margin-top: 6px;">
+                <span class="ctrl-label" title="跳过浏览器补全：只做注册+检测，速度最快，但拿不到 Web 凭据与 2FA 密钥">纯极速(跳过2FA)</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="skipCompletion">
+                    <span class="toggle-slider"></span>
+                </label>
+            </label>
+
+            <div id="pipelineBox" class="hidden" style="margin-top: 10px; padding: 10px; border-radius: 10px; background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.25);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span id="pipelinePhase" style="font-size:12px;font-weight:600;color:var(--text-main);">准备中</span>
+                    <span id="pipelineCount" style="font-size:11.5px;color:var(--text-muted);">0/0</span>
+                </div>
+                <div style="margin-top:6px;height:6px;border-radius:3px;background:rgba(148,163,184,.25);overflow:hidden;">
+                    <div id="pipelineBar" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#8b5cf6);transition:width .4s;"></div>
+                </div>
+                <div id="pipelineMessage" style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.4;"></div>
+            </div>
+        </div>
+
+        <!-- 临时邮箱配置 -->
+        <div class="control-box">
+            <div class="control-header">
+                <span>📬 邮箱接码渠道</span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-dim); margin-top: -4px;">勾选多个通道将随机轮询使用</div>
+            <div id="providerList" style="display: flex; flex-direction: column; gap: 4px;">
+                <!-- 动态由 script.js 加载 -->
+            </div>
+        </div>
+
+        <!-- 高级设置 -->
+        <div class="control-box">
+            <div class="control-header">
+                <span>⚙️ 运行与自动化设置</span>
+            </div>
+
+            <div class="ctrl-row">
+                <label class="ctrl-label">并行浏览器数</label>
+                <input type="number" id="parallelCount" class="ctrl-input" value="1" min="1" max="10"
+                    style="width: 70px; text-align: center;" onchange="saveSettings()">
+            </div>
+
+            <div class="ctrl-row">
+                <label class="ctrl-label">无界面模式 (Headless)</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="headlessMode" onchange="saveSettings()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="ctrl-row">
+                <label class="ctrl-label" title="注册成功后提取 32 位 Base32 TOTP 密钥">自动激活 2FA</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="enable2fa" checked onchange="saveSettings()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                <label class="ctrl-label" style="font-size: 11.5px; color: var(--text-muted);">试用邀请链接 (Referral URL)</label>
+                <input type="text" id="referralUrl" class="ctrl-input" placeholder="https://chatgpt.com/invite/..."
+                    style="font-size: 12px;" onchange="saveSettings()"
+                    title="绑定官方 Plus 邀请链接可激活 1 个月试用权益">
+            </div>
+
+            <!-- 网络代理设置 -->
+            <div style="margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border-light); display: flex; flex-direction: column; gap: 10px;">
+                <div class="ctrl-row">
+                    <span style="font-size: 12px; font-weight: 600; color: var(--text-main);">🌐 网络代理 (Proxy)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="proxyEnabled" onchange="saveSettings()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="proxyFields" style="display: grid; gap: 8px;">
+                    <div class="ctrl-row">
+                        <label class="ctrl-label">协议</label>
+                        <select id="proxyType" class="ctrl-input" style="width: 95px; padding: 6px 8px;" onchange="saveSettings()">
+                            <option value="http">HTTP</option>
+                            <option value="socks5">SOCKS5</option>
+                        </select>
+                    </div>
+                    <div class="ctrl-row">
+                        <label class="ctrl-label">主机</label>
+                        <input type="text" id="proxyHost" class="ctrl-input" placeholder="127.0.0.1" onchange="saveSettings()">
+                    </div>
+                    <div class="ctrl-row">
+                        <label class="ctrl-label">端口</label>
+                        <input type="number" id="proxyPort" class="ctrl-input" placeholder="7890" style="width: 80px;" onchange="saveSettings()">
+                    </div>
+                    <div class="ctrl-row">
+                        <label class="ctrl-label" style="font-size: 11.5px; color: var(--text-muted);">身份认证</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="proxyUseAuth" onchange="toggleProxyAuthFields(); saveSettings()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div id="proxyAuthFields" class="hidden" style="display: grid; gap: 6px;">
+                        <input type="text" id="proxyUsername" class="ctrl-input" placeholder="代理用户名" onchange="saveSettings()">
+                        <input type="password" id="proxyPassword" class="ctrl-input" placeholder="代理密码" onchange="saveSettings()">
+                    </div>
+                    <button class="action-btn-sm" id="btnTestProxy" onclick="testProxyConnection()" style="width: 100%; justify-content: center; margin-top: 2px;">
+                        <span>⚡</span> 测试代理连通性
+                    </button>
+                    <div id="proxyTestResult" style="font-size: 11px; margin-top: 2px; word-break: break-all; display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Workspace -->
+    <main class="main-view">
+
+        <!-- Top Header Bar -->
+        <header class="page-header">
+            <div class="header-left">
+                <h1 class="page-title">系统工作台概览</h1>
+                <p class="page-desc">自动化批量注册、实时画面监控、账号资产全画像在线诊断与 API 网关中继</p>
+            </div>
+            <div class="status-badge">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">系统就绪</span>
+            </div>
+        </header>
+
+        <!-- Notice Alert Callout -->
+        <div class="info-callout">
+            <span style="font-size: 16px;">💡</span>
+            <div>
+                <b>状态校验指引：</b>表格保存本地历史记录与最近一次在线检测结果。账号试用权益、实时模型额度与订阅到期时间请以官方页面最终确认为准。<a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">访问官方登录校验 ↗</a>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             View 1: Dashboard (Overview & Monitoring)
+             ================================================================== -->
+        <div id="view-dashboard" class="view-section">
+            <!-- Metrics Cards Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">📍 当前执行步骤</div>
+                    <div class="stat-value" id="valAction" style="font-size: 17px; font-weight: 600;">等待启动</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">✅ 本次成功产出</div>
+                    <div class="stat-value green" id="valSuccess">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">❌ 本次注册异常</div>
+                    <div class="stat-value red" id="valFail">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">📦 本地库存总数</div>
+                    <div class="stat-value blue" id="valInventory">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">🎯 本轮计划任务</div>
+                    <div class="stat-value" id="valTaskTotal">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">🏁 本轮已完成</div>
+                    <div class="stat-value" id="valCompleted">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">⏭️ 已跳过数量</div>
+                    <div class="stat-value" id="valSkipped">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">⏳ 本轮剩余数量</div>
+                    <div class="stat-value blue" id="valRemaining">0</div>
+                </div>
+            </div>
+
+            <!-- Split Monitor & Logs -->
+            <div class="split-view">
+                <!-- Monitor Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>📺</span> 自动化运行实时画面
+                        </div>
+                        <span class="status-pill neutral" id="monitorStatus">OFFLINE</span>
+                    </div>
+                    <div class="monitor-body">
+                        <img id="liveMonitor" class="monitor-img hidden" src="" alt="Monitor">
+                        <div id="noSignal" style="color: #64748b; font-size: 12.5px; display: flex; align-items: center; gap: 8px;">
+                            <span>📡</span> 等待画面信号流...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs Terminal Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>📜</span> 实时终端日志流
+                        </div>
+                        <button class="action-btn-sm" onclick="clearLogs()">清空日志</button>
+                    </div>
+                    <div class="log-body" id="logContainer">
+                        <div style="color: #64748b; text-align: center; margin-top: 30px;">> 服务已就绪，等待启动注册任务...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             View 2: Accounts Management (Sticky Table & Unified Actions)
+             ================================================================== -->
+        <div id="view-accounts" class="view-section hidden">
+            <div class="table-panel">
+                <!-- Top Toolbar -->
+                <div class="toolbar-container">
+                    <div class="toolbar-row">
+                        <!-- Left: Search Box -->
+                        <div class="search-box">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" id="searchInput" placeholder="搜索邮箱、状态、额度、到期时间、渠道..." onkeyup="filterAccounts()">
+                        </div>
+
+                        <!-- Center: Stats Chips -->
+                        <div class="stats-strip">
+                            <span class="stat-chip stat-chip-total">总数: <b id="statTotalAccs">0</b></span>
+                            <span class="stat-chip stat-chip-verified">上次验证通过: <b id="statNormalAccs">0</b></span>
+                            <span class="stat-chip stat-chip-paid">会员计划记录: <b id="statPaidAccs">0</b></span>
+                            <span class="stat-chip stat-chip-trial">已确认试用: <b id="statTrialAccs">0</b></span>
+                            <span class="stat-chip stat-chip-error">异常/封禁: <b id="statErrAccs">0</b></span>
+                        </div>
+
+                        <!-- Right: Action Buttons Group -->
+                        <div class="btn-group">
+                            <button class="action-btn-sm action-btn-primary" id="btnCheckAll" onclick="checkAllAccounts()" title="在线检测当前筛选账号的最新健康状态">
+                                <span>🔍</span> 一键全量在线检测
+                            </button>
+                            <button class="action-btn-sm action-btn-primary" id="btnPerfectAll" onclick="perfectAllAccounts()" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:#fff;" title="全自动为所有待处理账号补全密码、开启真实2FA并同步试用资格画像">
+                                <span>⚡</span> 一键全量完善(密码+2FA)
+                            </button>
+                            <button class="action-btn-sm action-btn-accent" onclick="openImportModal()" title="批量导入已有 GPT 账号或待处理邮箱，已注册账号自动跳过注册并在表格中保留展示">
+                                <span>📥</span> 批量导入
+                            </button>
+                            <button class="action-btn-sm action-btn-accent" onclick="exportAccounts('2fa')" title="导出格式：邮箱-----密码-----32位2fa (使用 5 个横杠)">
+                                <span>📥</span> 导出 2FA 格式 (5横杠)
+                            </button>
+                            <button class="action-btn-sm" onclick="copyAccountsFormatted('2fa')" title="快捷复制当前筛选账号为 5横杠 2FA 格式">
+                                <span>📋</span> 复制 2FA 格式
+                            </button>
+                            <button class="action-btn-sm" onclick="exportAccounts('csv')" title="导出完整表格为 CSV 格式文件">
+                                <span>📥</span> 导出 CSV
+                            </button>
+                            <button class="action-btn-sm" onclick="copyAccountsFormatted('combo')" title="复制格式：邮箱----密码----订阅----额度----到期时间----试用">
+                                <span>📋</span> 复制画像列表
+                            </button>
+                            <button class="action-btn-sm" onclick="copyAccountsFormatted('simple')" title="复制格式：邮箱----密码">
+                                <span>📋</span> 复制账号密码
+                            </button>
+                            <button class="action-btn-sm" onclick="loadAccounts()" title="重新加载本地最新数据">
+                                <span>🔄</span> 刷新
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Filter Tabs -->
+                <div class="filter-tab-bar">
+                    <button class="filter-btn active" data-filter="all" onclick="setAccountFilter('all')">
+                        全部 <span class="filter-count" id="tabCountAll">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="mode_protocol" onclick="setAccountFilter('mode_protocol')">
+                        ⚡ 极速协议 <span class="filter-count" id="tabCountProtocol">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="mode_browser" onclick="setAccountFilter('mode_browser')">
+                        🌐 浏览器自动化 <span class="filter-count" id="tabCountBrowser">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="mode_import" onclick="setAccountFilter('mode_import')">
+                        📥 批量导入 <span class="filter-count" id="tabCountImport">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="plus_all" onclick="setAccountFilter('plus_all')">
+                        🌟 试用/Plus 全部会员 <span class="filter-count" id="tabCountPlusAll">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="trial" onclick="setAccountFilter('trial')">
+                        🎁 已确认试用资格 <span class="filter-count" id="tabCountTrial">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="paid" onclick="setAccountFilter('paid')">
+                        🟢 会员计划记录 <span class="filter-count" id="tabCountPaid">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="free" onclick="setAccountFilter('free')">
+                        ⚪ 纯免费账号 <span class="filter-count" id="tabCountFree">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="fail" onclick="setAccountFilter('fail')">
+                        ❌ 异常/封禁/失败 <span class="filter-count" id="tabCountFail">0</span>
+                    </button>
+                </div>
+
+                <!-- Table with Sticky Column & Explicit Widths -->
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="col-email sticky-col">ChatGPT 邮箱</th>
+                                <th class="col-pwd">密码</th>
+                                <th class="col-2fa">2FA 密钥 (32位)</th>
+                                <th class="col-channel">创建方式</th>
+                                <th class="col-health">健康状态</th>
+                                <th class="col-plan">订阅 / 支付状态</th>
+                                <th class="col-quota">模型 / API额度</th>
+                                <th class="col-expiry">会员到期时间</th>
+                                <th class="col-trial">1个月试用资格</th>
+                                <th class="col-time">注册时间</th>
+                                <th class="col-inbox">临时邮箱 / 收件箱</th>
+                                <th class="col-action">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accountTableBody">
+                            <!-- 动态加载由 script.js 渲染 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             View 3: Final Report (全自动流水线产出)
+             ================================================================== -->
+        <div id="view-report" class="view-section hidden">
+            <div class="table-panel">
+                <div class="toolbar-container">
+                    <div class="toolbar-row">
+                        <div class="search-box">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" id="reportSearch" placeholder="搜索报表中的邮箱 / 计划 / 试用资格..." onkeyup="filterReport()">
+                        </div>
+                        <div class="stats-strip">
+                            <span class="stat-chip stat-chip-total">账号总数: <b id="reportTotal">0</b></span>
+                            <span class="stat-chip stat-chip-verified">官方确认: <b id="reportVerified">0</b></span>
+                            <span class="stat-chip stat-chip-paid">Plus 生效: <b id="reportPlus">0</b></span>
+                            <span class="stat-chip stat-chip-trial">有试用资格: <b id="reportTrial">0</b></span>
+                            <span class="stat-chip stat-chip-error">含真实2FA: <b id="report2fa">0</b></span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="action-btn-sm action-btn-primary" onclick="loadAutopilotReport()">
+                                <span>🔄</span> 刷新报表
+                            </button>
+                            <button class="action-btn-sm action-btn-primary" onclick="copyReport2fa()" title="复制 邮箱-----密码-----32位2fa">
+                                <span>📋</span> 复制 5横杠
+                            </button>
+                            <button class="action-btn-sm action-btn-accent" onclick="exportAutopilotReport()" title="落盘 JSON / CSV / Markdown / 2FA 文本">
+                                <span>📥</span> 导出报表文件
+                            </button>
+                            <button id="btnToggleSensitive" class="action-btn-sm" onclick="toggleSensitiveDisplay()" title="切换密码 / 2FA 明文显示（默认隐藏，点击仍可复制真实值）">
+                                <span>👁️</span> 显示敏感信息
+                            </button>
+                            <button id="btnBatchMode" class="action-btn-sm" onclick="toggleBatchMode()" title="开启后可勾选多行并批量复制">
+                                <span>☑️</span> 批量模式
+                            </button>
+                        </div>
+                    </div>
+                    <div id="reportStatusLine" style="font-size: 12px; color: var(--text-dim); padding: 4px 2px;">
+                        尚未运行全自动流水线。运行后这里会显示所有已注册账号的真实账号-密码-动态2FA-注册时间-试用资格-Plus状态。
+                    </div>
+                </div>
+
+                <div class="batch-bar">
+                    <span>☑️ 批量模式：已选 <b id="batchCount">0</b> 个</span>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                        <input type="checkbox" id="batchSelectAll" onchange="toggleSelectAll(this.checked)"> 全选/取消
+                    </label>
+                    <button class="action-btn-sm" onclick="batchExportSelected()" title="复制所选账号（邮箱-----密码-----2FA）">
+                        <span>📋</span> 复制所选
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="batch-col"><span title="批量选择">☑</span></th>
+                                <th class="col-email sticky-col sortable" data-sort-key="email" onclick="toggleReportSort('email')">邮箱</th>
+                                <th class="col-pwd">密码</th>
+                                <th class="col-2fa">2FA 密钥</th>
+                                <th style="min-width:120px;">动态验证码 (实时)</th>
+                                <th class="col-time sortable" data-sort-key="register_time" onclick="toggleReportSort('register_time')">注册时间</th>
+                                <th class="col-trial sortable" data-sort-key="trial" onclick="toggleReportSort('trial')">1个月 Plus 试用资格</th>
+                                <th class="col-plan sortable" data-sort-key="plus" onclick="toggleReportSort('plus')">当前 Plus 状态</th>
+                                <th class="col-expiry">到期时间</th>
+                                <th class="col-health">在线证据</th>
+                                <th class="col-inbox">收件箱</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody">
+                            <tr><td colspan="11" style="text-align:center;color:#64748b;padding:32px;">暂无数据</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             View 3: Token Import Tab
+             ================================================================== -->
+        <div id="view-tokens" class="view-section hidden">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span>🪪</span> 从外部 TXT 批量提取与获取 Token
+                    </div>
+                </div>
+
+                <div style="padding: 24px; display: grid; gap: 20px;">
+                    <div>
+                        <label class="ctrl-label">TXT 账号文件路径</label>
+                        <input type="text" id="tokenAccountsFile" class="ctrl-input"
+                            placeholder="例如: D:\Extends\antigravityProj\Registration\data\accounts\registered_accounts.txt">
+                        <div style="font-size: 12px; color: var(--text-dim); margin-top: 6px;">
+                            支持解析 TXT 中的邮箱、密码与收件凭证，自动完成 OAuth 流程补齐 Token。
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="ctrl-label">Token 导出输出目录</label>
+                        <input type="text" id="tokenOutputDir" class="ctrl-input"
+                            placeholder="例如: D:\Extends\antigravityProj\Registration\token_exports">
+                        <div style="font-size: 12px; color: var(--text-dim); margin-top: 6px;">
+                            获取成功后将统一输出 <code>ak.txt</code>、<code>rk.txt</code> 及独立账号 JSON 凭证。
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button class="action-btn-sm" style="padding: 9px 18px;" onclick="loadTokenImportSettings()">恢复默认配置</button>
+                        <button class="btn btn-primary" style="width: auto; padding: 9px 24px;" onclick="startTokenImportTask()">
+                            <span>🔑</span> 开始获取 Token
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
+                        <div class="stat-card">
+                            <div class="stat-label">总数</div>
+                            <div class="stat-value" id="tokenTotal">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">已完成</div>
+                            <div class="stat-value green" id="tokenCompleted">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">失败</div>
+                            <div class="stat-value red" id="tokenFail">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">已跳过</div>
+                            <div class="stat-value" id="tokenSkipped">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">剩余</div>
+                            <div class="stat-value blue" id="tokenRemaining">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================================================================
+             View 4: API Service (Chat2Api) Tab
+             ================================================================== -->
+        <div id="view-api-service" class="view-section hidden">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span>🌐</span> OpenAI 标准接口网关服务 (Chat2Api 联动)
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="action-btn-sm" id="btnStartC2A" onclick="startChat2ApiService()" style="background: var(--success); color: #fff; border-color: var(--success); font-weight: 600;">
+                            ▶ 启动 API 引擎
+                        </button>
+                        <button class="action-btn-sm" id="btnStopC2A" onclick="stopChat2ApiService()">
+                            ⏹ 停止引擎
+                        </button>
+                        <button class="action-btn-sm" onclick="loadChat2ApiStatus()">🔄 刷新状态</button>
+                    </div>
+                </div>
+
+                <div style="padding: 24px; display: grid; gap: 20px;">
+                    <!-- Status Cards -->
+                    <div class="card-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Chat2Api 引擎状态</div>
+                            <div class="stat-value" id="c2aStatusText" style="font-size: 18px; margin-top: 4px;">检测中...</div>
+                            <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">后端端口: 5005 | 统一代理端口: 8888</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">API 账号池可用 Web Tokens</div>
+                            <div class="stat-value blue" id="c2aTokenCount" style="font-size: 24px; margin-top: 4px;">0</div>
+                            <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">多账号并发自动负载均衡轮询</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Links Box -->
+                    <div class="glass-box">
+                        <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">⚡ 账号池与文档管理</div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="action-btn-sm" disabled title="Codex OAuth 凭证与 ChatGPT Web 凭证隔离保护" style="opacity: 0.6;">
+                                <span>🔒</span> Codex → Web 凭证严格隔离保护
+                            </button>
+                            <a href="http://127.0.0.1:5005/docs" target="_blank" class="action-btn-sm">
+                                <span>📖</span> 打开 Chat2Api Swagger 文档 ↗
+                            </a>
+                            <a href="http://127.0.0.1:5005/tokens" target="_blank" class="action-btn-sm">
+                                <span>🔑</span> 打开 Tokens 网页管理池 ↗
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Client Configuration Guide -->
+                    <div class="guide-box">
+                        <h4 style="font-size: 15px; font-weight: 600; color: var(--text-main);">🚀 外部第三方客户端接入参数</h4>
+                        <div style="display: grid; gap: 12px;">
+                            <div class="guide-row">
+                                <b>推荐 Base URL (统一端口):</b>
+                                <code class="code-pill">http://localhost:8888/v1</code>
+                                <button class="action-btn-sm" onclick="copyText('http://localhost:8888/v1')">复制</button>
+                            </div>
+                            <div class="guide-row">
+                                <b>直连 Base URL (底层端口):</b>
+                                <code class="code-neutral">http://127.0.0.1:5005/v1</code>
+                                <button class="action-btn-sm" onclick="copyText('http://127.0.0.1:5005/v1')">复制</button>
+                            </div>
+                            <div class="guide-row">
+                                <b>API Key:</b>
+                                <code class="code-neutral">任意填写 (例如 sk-123456)</code>
+                            </div>
+                            <div class="guide-row">
+                                <b>推荐模型列表:</b>
+                                <code class="code-neutral">gpt-4o / gpt-4o-mini / text-davinci-002-render-sha</code>
+                            </div>
+                            <div style="margin-top: 6px; font-size: 12px; color: var(--text-dim);">
+                                💡 完美支持：NextChat、Chatbox、Bob、Cherry Studio、沉浸式翻译等各类标准 OpenAI 接口客户端。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 批量导入账号模态弹窗 -->
+    <div id="importModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>📥 批量导入 GPT 账号 / 邮箱</h3>
+                <button class="modal-close" onclick="closeImportModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:8px;">
+                    支持多格式批量粘贴（每行一个）。若导入的账号已在系统中注册过，将<b>自动跳过重复注册</b>，并在表格中完整展示。
+                </p>
+                <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:8px;line-height:1.6;">
+                    • <code>邮箱-----密码-----32位2FA</code>（5横杠导出格式）<br>
+                    • <code>邮箱----密码----订阅----额度----到期----试用...</code>（组合格式）<br>
+                    • <code>邮箱----密码</code> 或 <code>邮箱:密码</code> 或 纯邮箱地址
+                </div>
+                <textarea id="importTextarea" rows="8" class="ctrl-input" style="width:100%;font-family:'JetBrains Mono',monospace;font-size:12px;resize:vertical;" placeholder="例如:&#10;user1@example.com-----MyPass123!-----ABCDEF23456789...&#10;user2@example.com----SecretPass888&#10;user3@icloud.com"></textarea>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
+                <button class="action-btn-sm" onclick="closeImportModal()">取消</button>
+                <button class="btn btn-primary" style="width:auto;padding:8px 20px;" id="btnSubmitImport" onclick="submitImportAccounts()">
+                    <span>📥</span> 开始导入
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
